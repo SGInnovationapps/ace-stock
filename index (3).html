@@ -1,0 +1,625 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#1f6f4a">
+<title>在庫管理表 | ACE NEXT</title>
+<link rel="manifest" href="manifest.json">
+<style>
+:root{
+  --paper:#f4f2ea; --card:#fff; --ink:#1a1c18; --muted:#6b6f66;
+  --rule:#a9c3d8; --brand:#1f6f4a; --stamp:#c8352a; --low:#b26a00;
+  --tap:48px;
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;padding:0}
+body{background:var(--paper);color:var(--ink);
+  font-family:-apple-system,BlinkMacSystemFont,"Hiragino Kaku Gothic ProN","Noto Sans JP","Yu Gothic",sans-serif;
+  font-size:16px;line-height:1.5;padding-bottom:calc(80px + env(safe-area-inset-bottom))}
+button,input,select{font:inherit;color:inherit}
+button{border:none;background:none;cursor:pointer}
+.num{font-variant-numeric:tabular-nums}
+
+/* ===== ヘッダー ===== */
+header{position:sticky;top:0;z-index:20;background:var(--paper);
+  padding:calc(8px + env(safe-area-inset-top)) 12px 0;border-bottom:1px solid #e3e0d6}
+.title{display:flex;align-items:center;gap:8px}
+.title h1{margin:0;font-size:18px;font-weight:800;letter-spacing:.06em;color:var(--brand)}
+.title .rule{font-size:10px;color:var(--stamp);font-weight:700;line-height:1.25;flex:1}
+.roombtn{height:34px;padding:0 12px;border-radius:999px;background:var(--brand);color:#fff;
+  font-size:13.5px;font-weight:700;white-space:nowrap}
+.roombtn::after{content:" ▾";font-size:10px;opacity:.8}
+.who{display:flex;align-items:center;gap:8px;margin-top:8px}
+.who label{font-size:12px;color:var(--muted);white-space:nowrap}
+.who select{flex:1;height:42px;border-radius:9px;border:1.5px solid var(--stamp);background:#fff;
+  padding:0 12px;font-size:16px;font-weight:700;color:var(--stamp);appearance:none;-webkit-appearance:none;
+  background-image:linear-gradient(45deg,transparent 50%,var(--stamp) 50%),linear-gradient(135deg,var(--stamp) 50%,transparent 50%);
+  background-position:calc(100% - 18px) 18px,calc(100% - 13px) 18px;background-size:5px 5px;background-repeat:no-repeat}
+.who select.empty{border-color:#d9a19b;color:var(--muted);font-weight:400}
+.who select.shake{animation:shake .35s}
+@keyframes shake{0%,100%{transform:translateX(0)}25%{transform:translateX(-5px)}75%{transform:translateX(5px)}}
+.tabs{display:flex;gap:6px;overflow-x:auto;margin-top:9px;scrollbar-width:none}
+.tabs::-webkit-scrollbar{display:none}
+.tab{white-space:nowrap;padding:7px 14px;border-radius:7px 7px 0 0;font-size:13.5px;
+  background:#e9e6db;color:var(--muted);border:1px solid #ded9cb;border-bottom:none}
+.tab[aria-pressed="true"]{font-weight:700;color:var(--ink)}
+.tab[data-tint="0"][aria-pressed="true"]{background:#dde8b2}
+.tab[data-tint="1"][aria-pressed="true"]{background:#cfe3da}
+.tab[data-tint="2"][aria-pressed="true"]{background:#f7d8ce}
+.tab[data-tint="3"][aria-pressed="true"]{background:#e3ddf0}
+
+main{max-width:680px;margin:0 auto;padding:12px 12px 0}
+.grouphead{font-size:12px;letter-spacing:.12em;color:var(--muted);font-weight:700;margin:14px 2px 8px}
+.grouphead:first-child{margin-top:2px}
+
+/* ===== 一覧 ===== */
+.item{background:var(--card);border:1px solid var(--rule);border-radius:8px;padding:11px 12px;margin-bottom:8px}
+.item.out{border-color:var(--stamp);box-shadow:inset 4px 0 0 var(--stamp)}
+.item.low{border-color:#e0be7e;box-shadow:inset 4px 0 0 var(--low)}
+.item.unchecked{border-style:dashed}
+.item.retired{opacity:.5}
+.item.retired .nm b{text-decoration:line-through double}
+.top{display:flex;gap:10px;align-items:flex-start}
+.nm{flex:1;min-width:0}
+.nm b{font-size:16.5px;font-weight:700;display:block;line-height:1.3}
+.nm small{color:var(--muted);font-size:11.5px;display:block;margin-top:3px}
+.stock{text-align:right;flex-shrink:0;line-height:1.05}
+.stock .n{font-size:29px;font-weight:800;letter-spacing:-.02em}
+.stock .u{font-size:11.5px;color:var(--muted);margin-left:2px}
+.item.out .stock .n{color:var(--stamp)}
+.item.low .stock .n{color:var(--low)}
+.item.unchecked .stock .n{color:#b9b6ab}
+.need{font-size:12px;color:var(--muted);border:1px solid #ddd8c9;border-radius:5px;padding:2px 7px;background:#faf8f1}
+.need b{color:var(--ink)}
+.line{display:flex;align-items:center;gap:8px;margin-top:9px;flex-wrap:wrap}
+.flag{font-size:11.5px;font-weight:700;color:var(--stamp)}
+.flag.gray{color:var(--muted)}
+.acts{margin-left:auto;display:flex;gap:6px}
+.acts button{height:40px;padding:0 15px;border-radius:8px;background:#eeece3;font-size:13.5px;font-weight:700;color:var(--brand)}
+.acts .order{background:var(--stamp);color:#fff}
+.acts .order[aria-pressed="true"]{background:#eeece3;color:var(--muted)}
+.busy{opacity:.5;pointer-events:none}
+
+/* ===== 点検 ===== */
+.checkbar{background:var(--card);border:1px solid var(--rule);border-radius:8px;padding:10px 12px;margin-bottom:10px}
+.datechips{display:flex;gap:6px;align-items:center}
+.datechips button{height:40px;padding:0 13px;border-radius:8px;background:#eeece3;font-size:13.5px;font-weight:700;color:var(--muted)}
+.datechips button[aria-pressed="true"]{background:var(--brand);color:#fff}
+.datechips input{flex:1;min-width:0;height:40px;border:1px solid var(--rule);border-radius:8px;padding:0 8px;background:#fff;font-size:14px}
+.checkbar p{margin:8px 0 0;font-size:12px;color:var(--muted)}
+.crow{background:var(--card);border:1px solid var(--rule);border-radius:8px;padding:10px 11px;margin-bottom:7px}
+.crow.done{border-color:var(--brand);background:#f6faf7}
+.crow.done.warn{border-color:var(--stamp);background:#fff7f5}
+.rowtop{display:flex;align-items:baseline;gap:8px}
+.rowtop b{flex:1;font-size:15.5px;font-weight:700;min-width:0}
+.prev{font-size:11.5px;color:var(--muted);white-space:nowrap}
+.hint{font-size:11px;font-weight:700;color:var(--stamp);margin-top:4px;min-height:0}
+.entry{display:flex;align-items:center;gap:6px;margin-top:8px}
+.entry button{height:var(--tap);border-radius:8px;background:#eeece3;font-weight:700;color:var(--brand);flex:0 0 auto}
+.entry .same{padding:0 11px;font-size:13px;background:#e4efe8}
+.entry .pm{width:48px;font-size:22px}
+.entry .zero{width:42px;font-size:14px;color:var(--muted)}
+.entry .val{flex:1;min-width:0;height:var(--tap);border:1px solid var(--rule);border-radius:8px;
+  text-align:center;font-size:22px;font-weight:800;background:#fff}
+.entry .val::placeholder{color:#c9c6bb;font-weight:400;font-size:15px}
+.submitbar{position:fixed;left:0;right:0;bottom:calc(60px + env(safe-area-inset-bottom));z-index:25;
+  padding:8px 12px;background:linear-gradient(to top,var(--paper) 70%,rgba(244,242,234,0))}
+.submitbar button{width:100%;max-width:680px;margin:0 auto;display:block;height:52px;border-radius:9px;
+  background:var(--brand);color:#fff;font-size:16px;font-weight:700}
+.submitbar button:disabled{background:#c7c3b6}
+
+/* ===== 記録表 ===== */
+.sheetwrap{overflow:auto;border:1px solid var(--rule);border-radius:8px;background:#fff}
+table.ledger{border-collapse:collapse;font-size:13px;min-width:100%}
+table.ledger th,table.ledger td{border:1px solid var(--rule);padding:5px 6px;text-align:center;vertical-align:top}
+table.ledger thead th{background:#dde8b2;font-size:11.5px;position:sticky;top:0;z-index:2}
+table.ledger tbody th{background:#f3f2ea;text-align:left;font-size:12.5px;position:sticky;left:0;z-index:1;min-width:110px;max-width:130px}
+table.ledger tbody th small{display:block;font-weight:400;color:var(--muted);font-size:10.5px}
+td .q{font-size:16px;font-weight:700}
+td .in{display:block;color:var(--stamp);font-size:10.5px;font-weight:700}
+td .by{display:block;color:var(--stamp);font-size:9.5px;border:1px solid var(--stamp);border-radius:999px;
+  padding:0 4px;margin:3px auto 0;width:fit-content;max-width:100%;white-space:nowrap;overflow:hidden}
+td.miss{background:#faf9f4}
+.tblnote{font-size:11.5px;color:var(--muted);margin:9px 2px 0}
+
+/* ===== 下部ナビ ===== */
+nav{position:fixed;left:0;right:0;bottom:0;z-index:30;background:var(--card);border-top:1px solid #ded9cb;
+  display:flex;padding-bottom:env(safe-area-inset-bottom)}
+nav button{flex:1;height:60px;font-size:11.5px;color:var(--muted);display:flex;flex-direction:column;
+  align-items:center;justify-content:center;gap:3px;position:relative}
+nav .ic{font-size:18px;line-height:1}
+nav button[aria-pressed="true"]{color:var(--brand);font-weight:700}
+nav .badge{position:absolute;top:7px;left:calc(50% + 8px);background:var(--stamp);color:#fff;font-size:10px;
+  font-weight:700;border-radius:999px;padding:1px 5px}
+
+/* ===== オーバーレイ（教室選択・入荷） ===== */
+.overlay{position:fixed;inset:0;z-index:50;display:none}
+.overlay.on{display:block}
+.overlay .bg{position:absolute;inset:0;background:rgba(26,28,24,.45)}
+.overlay .pane{position:absolute;left:0;right:0;bottom:0;background:var(--card);border-radius:16px 16px 0 0;
+  padding:18px 16px calc(20px + env(safe-area-inset-bottom));max-width:680px;margin:0 auto}
+.overlay h3{margin:0;font-size:17px}
+.overlay .sub{color:var(--muted);font-size:12px;margin:3px 0 14px}
+.roomlist{display:grid;gap:10px}
+.roomlist button{height:64px;border-radius:12px;border:2px solid var(--rule);background:#fff;font-size:19px;font-weight:800;color:var(--brand)}
+.roomlist button[aria-pressed="true"]{border-color:var(--brand);background:#eef6f1}
+#roomPick.first .bg{background:var(--brand)}
+#roomPick.first .pane{top:auto}
+.fld{margin-bottom:13px}
+.fld > span{font-size:11.5px;color:var(--muted);display:block;margin-bottom:6px}
+.stepper{display:flex;align-items:center;gap:10px}
+.stepper button{width:58px;height:58px;border-radius:12px;background:#eeece3;font-size:24px;font-weight:700;color:var(--brand)}
+.stepper output{flex:1;text-align:center;font-size:30px;font-weight:800}
+.stepper output small{font-size:13px;color:var(--muted);font-weight:400;margin-left:3px}
+.quick{display:flex;gap:6px;margin-top:8px}
+.quick button{flex:1;height:38px;border-radius:8px;background:#f4f2ea;font-size:13px;color:var(--muted);font-weight:700}
+.mrow{display:flex;gap:9px;margin-top:16px}
+.mrow button{flex:1;height:52px;border-radius:9px;font-weight:700}
+.mrow .cancel{background:#eeece3;color:var(--muted)}
+.mrow .go{background:var(--stamp);color:#fff}
+
+#toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(86px + env(safe-area-inset-bottom));
+  z-index:70;background:var(--ink);color:#fff;padding:10px 18px;border-radius:999px;font-size:13.5px;
+  opacity:0;pointer-events:none;transition:opacity .2s;max-width:88vw;text-align:center}
+#toast.on{opacity:.95}
+.empty{text-align:center;color:var(--muted);font-size:13.5px;padding:48px 20px}
+.empty b{display:block;font-size:15px;color:var(--ink);margin-bottom:6px}
+@media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="title">
+    <h1>在庫管理表</h1>
+    <div class="rule">最低個数に<br>なったら発注</div>
+    <button class="roombtn" id="roomBtn">—</button>
+  </div>
+  <div class="who">
+    <label for="staff">記入者</label>
+    <select id="staff"></select>
+  </div>
+  <div class="tabs" id="tabs"></div>
+</header>
+
+<main id="main"><div class="empty">読み込んでいます…</div></main>
+
+<div class="submitbar" id="submitbar" style="display:none"><button id="submitCheck">記録する</button></div>
+
+<nav>
+  <button id="navList" aria-pressed="true"><span class="ic">▤</span>一覧<span class="badge" id="badge" style="display:none"></span></button>
+  <button id="navCheck" aria-pressed="false"><span class="ic">✎</span>点検</button>
+  <button id="navTable" aria-pressed="false"><span class="ic">▦</span>記録表</button>
+</nav>
+
+<!-- 教室の選択 -->
+<div class="overlay" id="roomPick" aria-hidden="true">
+  <div class="bg" data-close-room></div>
+  <div class="pane">
+    <h3>どちらの教室ですか</h3>
+    <div class="sub">この端末で次から最初に開く教室になります。あとで上の教室名から切り替えられます。</div>
+    <div class="roomlist" id="roomList"></div>
+  </div>
+</div>
+
+<!-- 入荷 -->
+<div class="overlay" id="recv" aria-hidden="true">
+  <div class="bg" data-close-recv></div>
+  <div class="pane">
+    <h3 id="rvName">—</h3>
+    <div class="sub" id="rvSub"></div>
+    <div class="fld">
+      <span>入荷した数</span>
+      <div class="stepper">
+        <button id="rvMinus" aria-label="減らす">−</button>
+        <output id="rvQty" class="num">1</output>
+        <button id="rvPlus" aria-label="増やす">＋</button>
+      </div>
+      <div class="quick" id="rvQuick"></div>
+    </div>
+    <div class="fld">
+      <span>入荷日</span>
+      <div class="datechips" id="rvDates"></div>
+    </div>
+    <div class="mrow">
+      <button class="cancel" data-close-recv>やめる</button>
+      <button class="go" id="rvGo">入荷を記録</button>
+    </div>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<script>
+/* ===== 設定（導入時に2か所だけ書き換える） ===== */
+const API     = 'ここにGASウェブアプリのURLを貼る';   // https://script.google.com/macros/s/.../exec
+const APP_KEY = 'ここにアプリキーを貼る';             // スプレッドシートのメニュー「アプリキーを表示」
+
+/* ===== 状態 ===== */
+const LS = {
+  get: function (k, d) { try { const v = localStorage.getItem('aceStock.' + k); return v === null ? d : v; } catch (e) { return d; } },
+  set: function (k, v) { try { localStorage.setItem('aceStock.' + k, v); } catch (e) {} }
+};
+let rooms  = ['本校', '南丘校'];
+let staffAll = JSON.parse(LS.get('staff.list', '[]'));
+let room   = LS.get('room', '');
+let staff  = LS.get('staff.' + room, '');
+let items  = JSON.parse(LS.get('cache.' + room, '[]'));
+let group  = LS.get('group.' + room, '');
+let view   = 'list';
+let draft  = {};          // 点検の入力 {id: 数値}
+let checkDate = 'today';  // 'today' | 'yesterday' | 'yyyy-mm-dd'
+let hist   = null;
+let recvItem = null, recvQty = 1, recvDate = 'today';
+
+const $ = function (s) { return document.querySelector(s); };
+const pad = function (n) { return String(n).padStart(2, '0'); };
+const ymd = function (d) { return d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate()); };
+const dayOf = function (key) {
+  if (key === 'today') return ymd(new Date());
+  if (key === 'yesterday') { const d = new Date(); d.setDate(d.getDate() - 1); return ymd(d); }
+  return key;
+};
+const fmt = function (n) { return (n === null || n === undefined || n === '') ? '' : String(Math.round(Number(n) * 100) / 100); };
+const md = function (s) { const p = String(s || '').split('-'); return p.length === 3 ? Number(p[1]) + '/' + Number(p[2]) : ''; };
+const esc = function (s) { return String(s).replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); };
+
+/* ===== 通信 ===== */
+async function api(action, params) {
+  const res = await fetch(API, {
+    method: 'POST',
+    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+    body: JSON.stringify(Object.assign({ action: action, key: APP_KEY }, params || {}))
+  });
+  const d = await res.json();
+  if (!d.ok) throw new Error(d.message || '記録できませんでした');
+  return d;
+}
+function toast(msg) {
+  const t = $('#toast'); t.textContent = msg; t.classList.add('on');
+  clearTimeout(t._t); t._t = setTimeout(function () { t.classList.remove('on'); }, 2600);
+}
+
+/* ===== 教室 ===== */
+function openRoomPick(first) {
+  const box = $('#roomList'); box.innerHTML = '';
+  rooms.forEach(function (r) {
+    const b = document.createElement('button');
+    b.textContent = r; b.setAttribute('aria-pressed', String(r === room));
+    b.onclick = function () { setRoom(r); closeRoomPick(); };
+    box.appendChild(b);
+  });
+  $('#roomPick').classList.toggle('first', !!first);
+  $('#roomPick').classList.add('on'); $('#roomPick').setAttribute('aria-hidden', 'false');
+}
+function closeRoomPick() {
+  if (!room) return; // 最初の選択は必須
+  $('#roomPick').classList.remove('on'); $('#roomPick').setAttribute('aria-hidden', 'true');
+}
+document.querySelectorAll('[data-close-room]').forEach(function (n) { n.onclick = closeRoomPick; });
+$('#roomBtn').onclick = function () { openRoomPick(false); };
+
+function setRoom(r) {
+  room = r; LS.set('room', r);
+  staff = LS.get('staff.' + r, '');
+  items = JSON.parse(LS.get('cache.' + r, '[]'));
+  group = LS.get('group.' + r, '');
+  draft = {}; hist = null;
+  renderStaff(); render(); load();
+}
+
+/* ===== 記入者 ===== */
+function staffForRoom() {
+  return staffAll.filter(function (s) { return s.room === '両方' || s.room === room; });
+}
+function renderStaff() {
+  const sel = $('#staff');
+  const list = staffForRoom();
+  if (staff && !list.some(function (s) { return s.name === staff; })) staff = '';
+  sel.innerHTML = '<option value="">名前を選んでください</option>' +
+    list.map(function (s) { return '<option' + (s.name === staff ? ' selected' : '') + '>' + esc(s.name) + '</option>'; }).join('');
+  sel.classList.toggle('empty', !staff);
+  updateSubmit();
+}
+$('#staff').onchange = function (e) {
+  staff = e.target.value; LS.set('staff.' + room, staff);
+  e.target.classList.toggle('empty', !staff);
+  updateSubmit();
+};
+function needStaff() {
+  if (staff) return false;
+  const sel = $('#staff');
+  sel.classList.remove('shake'); void sel.offsetWidth; sel.classList.add('shake');
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+  toast('記入者を選んでください');
+  return true;
+}
+
+/* ===== 読み込み ===== */
+async function loadConfig() {
+  try {
+    const d = await api('config');
+    rooms = d.classrooms; staffAll = d.staff;
+    LS.set('staff.list', JSON.stringify(staffAll));
+    renderStaff();
+  } catch (e) { if (!staffAll.length) toast(e.message); }
+}
+async function load() {
+  if (!room) return;
+  const r = room;
+  try {
+    const d = await api('list', { room: r });
+    if (r !== room) return;
+    items = d.items; LS.set('cache.' + r, JSON.stringify(items));
+    render();
+  } catch (e) {
+    toast(items.length ? '通信できないため前回の内容を表示しています' : e.message);
+  }
+}
+
+function groups() {
+  const g = [];
+  items.forEach(function (i) { if (g.indexOf(i.group) < 0) g.push(i.group); });
+  return g;
+}
+function current() { return items.filter(function (i) { return i.group === group; }); }
+
+/* ===== 画面切替 ===== */
+function setView(v) {
+  view = v;
+  ['List', 'Check', 'Table'].forEach(function (k) {
+    $('#nav' + k).setAttribute('aria-pressed', String(v === k.toLowerCase()));
+  });
+  $('#submitbar').style.display = v === 'check' ? 'block' : 'none';
+  if (v === 'table' && !hist) loadHistory();
+  window.scrollTo(0, 0);
+  render();
+}
+$('#navList').onclick = function () { setView('list'); };
+$('#navCheck').onclick = function () { setView('check'); };
+$('#navTable').onclick = function () { setView('table'); };
+
+function render() {
+  $('#roomBtn').textContent = room || '教室';
+  const gs = groups();
+  if (!group || gs.indexOf(group) < 0) group = gs[0] || '';
+
+  const tabs = $('#tabs'); tabs.innerHTML = '';
+  gs.forEach(function (g, idx) {
+    const b = document.createElement('button');
+    b.className = 'tab'; b.textContent = g; b.dataset.tint = String(idx % 4);
+    b.setAttribute('aria-pressed', String(g === group));
+    b.onclick = function () { group = g; LS.set('group.' + room, g); window.scrollTo(0, 0); render(); };
+    tabs.appendChild(b);
+  });
+
+  const short = items.filter(function (i) { return (i.status === 'out' || i.status === 'low') && !i.ordered; }).length;
+  $('#badge').style.display = short ? 'inline' : 'none'; $('#badge').textContent = short;
+
+  if (view === 'list') renderList();
+  else if (view === 'check') renderCheck();
+  else renderTable();
+}
+
+/* --- 一覧 --- */
+function renderList() {
+  const m = $('#main'); m.innerHTML = '';
+  const list = current();
+  if (!list.length) { m.innerHTML = '<div class="empty"><b>この表に商品がありません</b>スプレッドシートの「商品マスタ」に ' + esc(room) + ' の行を追加してください。</div>'; return; }
+  const short = list.filter(function (i) { return i.status === 'out' || i.status === 'low'; });
+  const rest = list.filter(function (i) { return !(i.status === 'out' || i.status === 'low'); });
+  if (short.length) { m.appendChild(head('最低個数を下回っています（' + short.length + '件）')); short.forEach(function (i) { m.appendChild(itemCard(i)); }); }
+  if (rest.length) { m.appendChild(head('そのほか（' + rest.length + '件）')); rest.forEach(function (i) { m.appendChild(itemCard(i)); }); }
+}
+function head(t) { const d = document.createElement('div'); d.className = 'grouphead'; d.textContent = t; return d; }
+
+function itemCard(i) {
+  const el = document.createElement('div');
+  el.className = 'item ' + i.status + (i.retired ? ' retired' : '');
+  let flag = '';
+  if (i.retired) flag = '<span class="flag gray">取り扱い終了</span>';
+  else if (i.status === 'unchecked') flag = '<span class="flag gray">まだ点検していません</span>';
+  else if (i.ordered) flag = '<span class="flag gray">発注済み</span>';
+  else if (i.status === 'out') flag = '<span class="flag">在庫なし</span>';
+  else if (i.status === 'low') flag = '<span class="flag">要発注</span>';
+  const canOrder = !i.retired && (i.status === 'out' || i.status === 'low');
+
+  el.innerHTML =
+    '<div class="top"><div class="nm"><b>' + esc(i.name) + '</b><small>' +
+      (i.lastDate ? '前回 ' + md(i.lastDate) + (i.lastBy ? '・' + esc(i.lastBy) : '') : '記録なし') +
+      (i.note ? '　' + esc(i.note) : '') + '</small></div>' +
+    '<div class="stock"><span class="n num">' + (i.status === 'unchecked' ? '—' : fmt(i.qty)) + '</span><span class="u">' + esc(i.unit) + '</span></div></div>' +
+    '<div class="line"><span class="need">最低/必要 <b class="num">' + fmt(i.min) + '</b>/<b class="num">' + fmt(i.need) + '</b></span>' + flag +
+    '<span class="acts">' + (i.retired ? '' : '<button class="recv">入荷</button>') +
+      (canOrder ? '<button class="order" aria-pressed="' + i.ordered + '">' + (i.ordered ? '発注済み' : '発注する') + '</button>' : '') +
+    '</span></div>';
+  const rb = el.querySelector('.recv'); if (rb) rb.onclick = function () { openRecv(i); };
+  const ob = el.querySelector('.order'); if (ob) ob.onclick = function () { toggleOrder(el, i); };
+  return el;
+}
+
+async function toggleOrder(el, i) {
+  if (needStaff()) return;
+  el.classList.add('busy');
+  try {
+    const d = await api('order', { id: i.id, ordered: !i.ordered, staff: staff });
+    Object.assign(i, d.item); LS.set('cache.' + room, JSON.stringify(items));
+    render(); toast(i.ordered ? '発注済みにしました' : '発注済みを取り消しました');
+  } catch (e) { toast(e.message); }
+  finally { el.classList.remove('busy'); }
+}
+
+/* --- 点検 --- */
+function dateChips(container, current, onPick) {
+  const isCustom = current !== 'today' && current !== 'yesterday';
+  container.innerHTML =
+    '<button data-k="today" aria-pressed="' + (current === 'today') + '">今日</button>' +
+    '<button data-k="yesterday" aria-pressed="' + (current === 'yesterday') + '">昨日</button>' +
+    '<input type="date" value="' + dayOf(current) + '"' + (isCustom ? ' style="border-color:var(--brand)"' : '') + ' aria-label="日付を選ぶ">';
+  container.querySelectorAll('button').forEach(function (b) { b.onclick = function () { onPick(b.dataset.k); }; });
+  container.querySelector('input').onchange = function (e) { if (e.target.value) onPick(e.target.value); };
+}
+
+function renderCheck() {
+  const m = $('#main'); m.innerHTML = '';
+  const list = current().filter(function (i) { return !i.retired; });
+
+  const bar = document.createElement('div');
+  bar.className = 'checkbar';
+  bar.innerHTML = '<div class="datechips" id="ckDates"></div><p>数えた残りを上から入れます。変わっていなければ「同じ」。空欄の商品は記録しません。</p>';
+  m.appendChild(bar);
+  dateChips(bar.querySelector('#ckDates'), checkDate, function (k) { checkDate = k; renderCheck(); });
+
+  list.forEach(function (i) { m.appendChild(checkRow(i)); });
+  updateSubmit();
+}
+
+function checkRow(i) {
+  const row = document.createElement('div');
+  const has = draft[i.id] !== undefined;
+  row.className = 'crow';
+  row.innerHTML =
+    '<div class="rowtop"><b>' + esc(i.name) + '</b><span class="prev">前回 ' +
+      (i.lastDate ? md(i.lastDate) + '　' + fmt(i.qty) + esc(i.unit) : 'なし') + '</span></div>' +
+    '<div class="entry">' +
+      (i.lastDate ? '<button class="same">同じ</button>' : '') +
+      '<button class="pm minus" aria-label="' + i.step + '減らす">−</button>' +
+      '<input class="val num" type="text" inputmode="decimal" placeholder="' + esc(i.unit) + '" value="' + (has ? fmt(draft[i.id]) : '') + '">' +
+      '<button class="pm plus" aria-label="' + i.step + '増やす">＋</button>' +
+      '<button class="zero">0</button>' +
+    '</div><div class="hint"></div>';
+
+  const inp = row.querySelector('.val');
+  const base = function () { return draft[i.id] !== undefined ? draft[i.id] : (i.lastDate ? i.qty : 0); };
+  const paint = function () {
+    const v = draft[i.id], done = v !== undefined;
+    row.classList.toggle('done', done);
+    const warn = done && v <= i.min;
+    row.classList.toggle('warn', warn);
+    row.querySelector('.hint').textContent = warn ? (v <= 0 ? '在庫なしで記録されます' : '最低個数（' + fmt(i.min) + '）以下 → 要発注になります') : '';
+    updateSubmit();
+  };
+  const put = function (v) {
+    if (v === null) { delete draft[i.id]; inp.value = ''; }
+    else { v = Math.max(0, Math.round(v * 100) / 100); draft[i.id] = v; inp.value = fmt(v); }
+    paint();
+  };
+
+  const sb = row.querySelector('.same'); if (sb) sb.onclick = function () { put(i.qty); };
+  // 空欄から＋−を押したときは前回の値を起点にする（押す回数を減らす）
+  row.querySelector('.minus').onclick = function () { put(base() - i.step); };
+  row.querySelector('.plus').onclick = function () { put(base() + i.step); };
+  row.querySelector('.zero').onclick = function () { put(0); };
+  inp.oninput = function () {
+    const s = inp.value.trim();
+    if (s === '') { delete draft[i.id]; paint(); return; }
+    const n = Number(s); if (!isNaN(n) && n >= 0) { draft[i.id] = n; paint(); }
+  };
+  if (has) paint();
+  return row;
+}
+
+function draftEntries() {
+  return current().filter(function (i) { return !i.retired && draft[i.id] !== undefined; })
+    .map(function (i) { return { id: i.id, qty: draft[i.id] }; });
+}
+function updateSubmit() {
+  const b = $('#submitCheck'); if (!b) return;
+  const n = draftEntries().length;
+  b.disabled = n === 0;
+  b.textContent = n === 0 ? '数を入れると記録できます'
+    : (staff ? staff + ' として ' + n + '件を記録' : '記入者を選んでから記録');
+}
+$('#submitCheck').onclick = async function () {
+  if (needStaff()) return;
+  const entries = draftEntries(); if (!entries.length) return;
+  const b = $('#submitCheck'); b.disabled = true; b.textContent = '記録中…';
+  try {
+    const d = await api('check', { room: room, staff: staff, date: dayOf(checkDate), entries: entries });
+    d.items.forEach(function (u) { const i = items.find(function (x) { return x.id === u.id; }); if (i) Object.assign(i, u); });
+    LS.set('cache.' + room, JSON.stringify(items));
+    entries.forEach(function (e) { delete draft[e.id]; });
+    hist = null; checkDate = 'today';
+    toast(room + '・' + group + '　' + md(d.date) + ' の点検を ' + d.count + '件 記録しました');
+    setView('list');
+  } catch (e) { toast(e.message); updateSubmit(); }
+};
+
+/* --- 記録表 --- */
+async function loadHistory() {
+  const r = room;
+  try { const d = await api('history', { room: r, limit: 8 }); if (r === room) { hist = d; if (view === 'table') render(); } }
+  catch (e) { toast(e.message); }
+}
+function renderTable() {
+  const m = $('#main'); m.innerHTML = '';
+  if (!hist) { m.innerHTML = '<div class="empty">記録表を読み込んでいます…</div>'; return; }
+  if (!hist.dates.length) { m.innerHTML = '<div class="empty"><b>' + esc(room) + ' の記録はまだありません</b>「点検」で残りを入れると、ここに日付の列が増えていきます。</div>'; return; }
+  let h = '<table class="ledger"><thead><tr><th>商品名</th><th>最低/必要</th>';
+  hist.dates.forEach(function (d) { h += '<th>' + md(d) + '</th>'; });
+  h += '</tr></thead><tbody>';
+  current().forEach(function (i) {
+    h += '<tr><th>' + esc(i.name) + '<small>' + esc(i.unit) + (i.retired ? '・終了' : '') + '</small></th><td class="num">' + fmt(i.min) + '/' + fmt(i.need) + '</td>';
+    const cells = hist.cells[i.id] || {};
+    hist.dates.forEach(function (d) {
+      const c = cells[d];
+      h += c ? '<td>' + (c.in ? '<span class="in">' + fmt(c.in) + '入</span>' : '') +
+        '<span class="q num">' + (c.qty === null ? '' : fmt(c.qty)) + '</span>' +
+        (c.by ? '<span class="by">' + esc(c.by) + '</span>' : '') + '</td>' : '<td class="miss"></td>';
+    });
+    h += '</tr>';
+  });
+  h += '</tbody></table>';
+  const w = document.createElement('div'); w.className = 'sheetwrap'; w.innerHTML = h; m.appendChild(w);
+  const n = document.createElement('p'); n.className = 'tblnote';
+  n.textContent = room + ' の記録です。横にスクロールすると過去の点検日。赤字は入荷、丸囲みは記入者。';
+  m.appendChild(n);
+}
+
+/* --- 入荷 --- */
+function openRecv(i) {
+  if (needStaff()) return;
+  recvItem = i; recvDate = 'today';
+  recvQty = i.need > 0 ? i.need : i.step;
+  $('#rvName').textContent = i.name;
+  $('#rvSub').textContent = room + '　現在 ' + (i.status === 'unchecked' ? '未点検' : fmt(i.qty) + i.unit) +
+    '（最低 ' + fmt(i.min) + ' / 必要 ' + fmt(i.need) + '）　記入者：' + staff;
+  const q = $('#rvQuick'); q.innerHTML = '';
+  const opts = [i.step, i.need, i.need * 2].filter(function (v, k, a) { return v > 0 && a.indexOf(v) === k; });
+  opts.forEach(function (v) {
+    const b = document.createElement('button'); b.textContent = fmt(v) + i.unit;
+    b.onclick = function () { recvQty = v; paintRecv(); }; q.appendChild(b);
+  });
+  paintRecv();
+  $('#recv').classList.add('on'); $('#recv').setAttribute('aria-hidden', 'false');
+}
+function paintRecv() {
+  $('#rvQty').innerHTML = fmt(recvQty) + '<small>' + esc(recvItem.unit) + '</small>';
+  dateChips($('#rvDates'), recvDate, function (k) { recvDate = k; paintRecv(); });
+}
+function closeRecv() { $('#recv').classList.remove('on'); $('#recv').setAttribute('aria-hidden', 'true'); recvItem = null; }
+document.querySelectorAll('[data-close-recv]').forEach(function (n) { n.onclick = closeRecv; });
+$('#rvMinus').onclick = function () { recvQty = Math.max(recvItem.step, recvQty - recvItem.step); paintRecv(); };
+$('#rvPlus').onclick = function () { recvQty = recvQty + recvItem.step; paintRecv(); };
+$('#rvGo').onclick = async function () {
+  if (!recvItem) return;
+  const b = $('#rvGo'); b.disabled = true;
+  try {
+    const d = await api('receive', { id: recvItem.id, qty: recvQty, date: dayOf(recvDate), staff: staff });
+    const i = items.find(function (x) { return x.id === d.item.id; }); if (i) Object.assign(i, d.item);
+    LS.set('cache.' + room, JSON.stringify(items)); hist = null;
+    const name = recvItem.name, q = recvQty, u = recvItem.unit;
+    closeRecv(); render(); toast(name + ' に ' + fmt(q) + u + ' 入荷しました');
+  } catch (e) { toast(e.message); }
+  finally { b.disabled = false; }
+};
+
+/* ===== 起動 ===== */
+renderStaff();
+loadConfig();
+if (room) { render(); load(); } else { openRoomPick(true); }
+if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(function () {});
+</script>
+</body>
+</html>
